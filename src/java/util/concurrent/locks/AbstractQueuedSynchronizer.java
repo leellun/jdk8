@@ -468,26 +468,38 @@ public abstract class AbstractQueuedSynchronizer
         }
     }
 
-    /** 头结点，如果head存在，waitStatus保证不会是{@link Node#CANCELLED} */
+    /**
+     * 头结点，如果head存在，waitStatus保证不会是{@link Node#CANCELLED}
+     */
     private transient volatile Node head;
 
-    /**尾节点*/
+    /**
+     * 尾节点
+     */
     private transient volatile Node tail;
 
-    /**同步状态*/
+    /**
+     * 同步状态
+     */
     private volatile int state;
 
-    /**返回当前状态*/
+    /**
+     * 返回当前状态
+     */
     protected final int getState() {
         return state;
     }
 
-    /** 设置当前同步状态*/
+    /**
+     * 设置当前同步状态
+     */
     protected final void setState(int newState) {
         state = newState;
     }
 
-    /**基于CAS，原子设置当前状态*/
+    /**
+     * 基于CAS，原子设置当前状态
+     */
     protected final boolean compareAndSetState(int expect, int update) {
         // See below for intrinsics setup to support this
         return unsafe.compareAndSwapInt(this, stateOffset, expect, update);
@@ -495,7 +507,9 @@ public abstract class AbstractQueuedSynchronizer
 
     // Queuing utilities
 
-    /**变量阀值,它是决定使用自旋方式消耗时间还是使用系统阻塞方式消耗时间的分割线*/
+    /**
+     * 变量阀值,它是决定使用自旋方式消耗时间还是使用系统阻塞方式消耗时间的分割线
+     */
     static final long spinForTimeoutThreshold = 1000L;
 
     /**
@@ -712,6 +726,13 @@ public abstract class AbstractQueuedSynchronizer
     }
 
     /**
+     * 执行当前线程的interrupt中断
+     */
+    static void selfInterrupt() {
+        Thread.currentThread().interrupt();
+    }
+
+    /**
      * 根据前驱节点中的waitStatus来判断是否需要阻塞当前线程。
      */
     private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
@@ -724,20 +745,17 @@ public abstract class AbstractQueuedSynchronizer
             do {
                 node.prev = pred = pred.prev;
             } while (pred.waitStatus > 0);
-            pred.next = node;
         } else {
+            pred.next = node;
             //等待状态为0或者PROPAGATE(-3)，设置前驱的等待状态为SIGNAL, 并且之后会回到循环再次重试获取锁。
             compareAndSetWaitStatus(pred, ws, Node.SIGNAL);
         }
         return false;
     }
 
-    /** 执行当前线程的interrupt中断*/
-    static void selfInterrupt() {
-        Thread.currentThread().interrupt();
-    }
-
-    /** 阻塞当前线程，并且返回当前线程恢复是否是通过interrupt */
+    /**
+     * 阻塞当前线程，并且返回当前线程恢复是否是通过interrupt
+     */
     private final boolean parkAndCheckInterrupt() {
         //阻塞当前线程
         LockSupport.park(this);
@@ -779,7 +797,9 @@ public abstract class AbstractQueuedSynchronizer
         }
     }
 
-    /**获得独占中断模式*/
+    /**
+     * 获得独占中断模式
+     */
     private void doAcquireInterruptibly(int arg)
             throws InterruptedException {
         final Node node = addWaiter(Node.EXCLUSIVE);
@@ -803,7 +823,9 @@ public abstract class AbstractQueuedSynchronizer
         }
     }
 
-    /**获取指定时间的独占锁*/
+    /**
+     * 获取指定时间的独占锁
+     */
     private boolean doAcquireNanos(int arg, long nanosTimeout)
             throws InterruptedException {
         if (nanosTimeout <= 0L)
@@ -835,7 +857,9 @@ public abstract class AbstractQueuedSynchronizer
         }
     }
 
-    /** 共享锁获取*/
+    /**
+     * 共享锁获取
+     */
     private void doAcquireShared(int arg) {
         final Node node = addWaiter(Node.SHARED);
         boolean failed = true;
@@ -865,7 +889,9 @@ public abstract class AbstractQueuedSynchronizer
         }
     }
 
-    /**获取可打断的共享模式 */
+    /**
+     * 获取可打断的共享模式
+     */
     private void doAcquireSharedInterruptibly(int arg)
             throws InterruptedException {
         final Node node = addWaiter(Node.SHARED);
@@ -892,7 +918,9 @@ public abstract class AbstractQueuedSynchronizer
         }
     }
 
-    /**获得指定时间共享模式。 */
+    /**
+     * 获得指定时间共享模式。
+     */
     private boolean doAcquireSharedNanos(int arg, long nanosTimeout)
             throws InterruptedException {
         if (nanosTimeout <= 0L)
@@ -929,27 +957,37 @@ public abstract class AbstractQueuedSynchronizer
 
     // Main exported methods
 
-    /**试获取独占锁*/
+    /**
+     * 试获取独占锁
+     */
     protected boolean tryAcquire(int arg) {
         throw new UnsupportedOperationException();
     }
 
-    /**试释放独占锁*/
+    /**
+     * 试释放独占锁
+     */
     protected boolean tryRelease(int arg) {
         throw new UnsupportedOperationException();
     }
 
-    /**试获取共享锁*/
+    /**
+     * 试获取共享锁
+     */
     protected int tryAcquireShared(int arg) {
         throw new UnsupportedOperationException();
     }
 
-    /**试释放共享锁*/
+    /**
+     * 试释放共享锁
+     */
     protected boolean tryReleaseShared(int arg) {
         throw new UnsupportedOperationException();
     }
 
-    /**当前线程是否获得了独占锁*/
+    /**
+     * 当前线程是否获得了独占锁
+     */
     protected boolean isHeldExclusively() {
         throw new UnsupportedOperationException();
     }
@@ -966,7 +1004,9 @@ public abstract class AbstractQueuedSynchronizer
             selfInterrupt();
     }
 
-    /**响应中断版本的acquire*/
+    /**
+     * 响应中断版本的acquire
+     */
     public final void acquireInterruptibly(int arg)
             throws InterruptedException {
         if (Thread.interrupted())
@@ -975,7 +1015,9 @@ public abstract class AbstractQueuedSynchronizer
             doAcquireInterruptibly(arg);
     }
 
-    /**响应中断+带超时版本的acquire*/
+    /**
+     * 响应中断+带超时版本的acquire
+     */
     public final boolean tryAcquireNanos(int arg, long nanosTimeout)
             throws InterruptedException {
         if (Thread.interrupted())
@@ -984,7 +1026,9 @@ public abstract class AbstractQueuedSynchronizer
                 doAcquireNanos(arg, nanosTimeout);
     }
 
-    /**释放独占锁*/
+    /**
+     * 释放独占锁
+     */
     public final boolean release(int arg) {
         if (tryRelease(arg)) {
             /*
@@ -1014,13 +1058,17 @@ public abstract class AbstractQueuedSynchronizer
         return false;
     }
 
-    /**获取共享锁。会调用tryAcquireShared方法*/
+    /**
+     * 获取共享锁。会调用tryAcquireShared方法
+     */
     public final void acquireShared(int arg) {
         if (tryAcquireShared(arg) < 0)
             doAcquireShared(arg);
     }
 
-    /**响应中断版本的acquireShared*/
+    /**
+     * 响应中断版本的acquireShared
+     */
     public final void acquireSharedInterruptibly(int arg)
             throws InterruptedException {
         if (Thread.interrupted())
@@ -1029,7 +1077,9 @@ public abstract class AbstractQueuedSynchronizer
             doAcquireSharedInterruptibly(arg);
     }
 
-    /**响应中断+带超时版本的acquireShared */
+    /**
+     * 响应中断+带超时版本的acquireShared
+     */
     public final boolean tryAcquireSharedNanos(int arg, long nanosTimeout)
             throws InterruptedException {
         if (Thread.interrupted())
@@ -1038,7 +1088,9 @@ public abstract class AbstractQueuedSynchronizer
                 doAcquireSharedNanos(arg, nanosTimeout);
     }
 
-    /**释放共享锁 */
+    /**
+     * 释放共享锁
+     */
     public final boolean releaseShared(int arg) {
         if (tryReleaseShared(arg)) {
             doReleaseShared();
@@ -1049,12 +1101,16 @@ public abstract class AbstractQueuedSynchronizer
 
     // Queue inspection methods
 
-    /**是否有线程正在等待获得,,由于取消、中断和超时可能发生,{@code true}不保证任何其他线程会获得锁。*/
+    /**
+     * 是否有线程正在等待获得,,由于取消、中断和超时可能发生,{@code true}不保证任何其他线程会获得锁。
+     */
     public final boolean hasQueuedThreads() {
         return head != tail;
     }
 
-    /**是否其他线程也曾争着获取此同步器；也就是说，是否某个 acquire 方法已经阻塞。  在此实现中，该操作是以固定时间返回的。*/
+    /**
+     * 是否其他线程也曾争着获取此同步器；也就是说，是否某个 acquire 方法已经阻塞。  在此实现中，该操作是以固定时间返回的。
+     */
     public final boolean hasContended() {
         return head != null;
     }
@@ -1111,7 +1167,9 @@ public abstract class AbstractQueuedSynchronizer
         return false;
     }
 
-    /** 第一个节点是否独占锁*/
+    /**
+     * 第一个节点是否独占锁
+     */
     final boolean apparentlyFirstQueuedIsExclusive() {
         Node h, s;
         return (h = head) != null &&
@@ -1121,47 +1179,7 @@ public abstract class AbstractQueuedSynchronizer
     }
 
     /**
-     * Queries whether any threads have been waiting to acquire longer
-     * than the current thread.
-     *
-     * <p>An invocation of this method is equivalent to (but may be
-     * more efficient than):
-     * <pre> {@code
-     * getFirstQueuedThread() != Thread.currentThread() &&
-     * hasQueuedThreads()}</pre>
-     *
-     * <p>Note that because cancellations due to interrupts and
-     * timeouts may occur at any time, a {@code true} return does not
-     * guarantee that some other thread will acquire before the current
-     * thread.  Likewise, it is possible for another thread to win a
-     * race to enqueue after this method has returned {@code false},
-     * due to the queue being empty.
-     *
-     * <p>This method is designed to be used by a fair synchronizer to
-     * avoid <a href="AbstractQueuedSynchronizer#barging">barging</a>.
-     * Such a synchronizer's {@link #tryAcquire} method should return
-     * {@code false}, and its {@link #tryAcquireShared} method should
-     * return a negative value, if this method returns {@code true}
-     * (unless this is a reentrant acquire).  For example, the {@code
-     * tryAcquire} method for a fair, reentrant, exclusive mode
-     * synchronizer might look like this:
-     *
-     * <pre> {@code
-     * protected boolean tryAcquire(int arg) {
-     *   if (isHeldExclusively()) {
-     *     // A reentrant acquire; increment hold count
-     *     return true;
-     *   } else if (hasQueuedPredecessors()) {
-     *     return false;
-     *   } else {
-     *     // try to acquire normally
-     *   }
-     * }}</pre>
-     *
-     * @return {@code true} if there is a queued thread preceding the
-     * current thread, and {@code false} if the current thread
-     * is at the head of the queue or the queue is empty
-     * @since 1.7
+     * 是否有线程等待获取锁的时间比当前线程长
      */
     public final boolean hasQueuedPredecessors() {
         // The correctness of this depends on head being initialized
@@ -1196,7 +1214,9 @@ public abstract class AbstractQueuedSynchronizer
         return n;
     }
 
-    /**获取同步队列上的线程集合*/
+    /**
+     * 获取同步队列上的线程集合
+     */
     public final Collection<Thread> getQueuedThreads() {
         ArrayList<Thread> list = new ArrayList<Thread>();
         for (Node p = tail; p != null; p = p.prev) {
@@ -1263,40 +1283,31 @@ public abstract class AbstractQueuedSynchronizer
                 "[State = " + s + ", " + q + "empty queue]";
     }
 
-
-    // Internal support methods for Conditions
-
     /**
-     * Returns true if a node, always one that was initially placed on
-     * a condition queue, is now waiting to reacquire on sync queue.
+     * 是否在同步队列中
      *
      * @param node the node
      * @return true if is reacquiring
      */
     final boolean isOnSyncQueue(Node node) {
+        //判断节点的状态，如果状态是CONDITION，说明节点肯定不在同步队列中，同时哪怕同步队列是刚刚初始化的，也会有一个冗余的头节点存在，所以节点的前驱节点如果为null，那么节点也肯定不在同步队列中，返回fasle
         if (node.waitStatus == Node.CONDITION || node.prev == null)
             return false;
+        //节点的后继节点不为null，说明节点肯定在队列中，返回true，这里很重要的一点要明白，prev和next都是针对同步队列的节点
         if (node.next != null) // If has successor, it must be on queue
             return true;
-        /*
-         * node.prev can be non-null, but not yet on queue because
-         * the CAS to place it on queue can fail. So we have to
-         * traverse from tail to make sure it actually made it.  It
-         * will always be near the tail in calls to this method, and
-         * unless the CAS failed (which is unlikely), it will be
-         * there, so we hardly ever traverse much.
-         */
         return findNodeFromTail(node);
     }
 
     /**
-     * Returns true if node is on sync queue by searching backwards from tail.
-     * Called only when needed by isOnSyncQueue.
+     * 通过tail节点反向查找node是否在同步队列中
      *
      * @return true if present
      */
     private boolean findNodeFromTail(Node node) {
+        //取得同步队列的队尾元素
         Node t = tail;
+        //无限循环，从队尾元素一直往前找，找到相等的节点就说明节点在队列中，node为null了，说明前面已经没有节点可以找了，那就返回false
         for (; ; ) {
             if (t == node)
                 return true;
