@@ -253,25 +253,22 @@ public class ReentrantReadWriteLock
         private static final long serialVersionUID = 6317671515068378041L;
 
         /*
-         * Read vs write count extraction constants and functions.
-         * Lock state is logically divided into two unsigned shorts:
-         * The lower one representing the exclusive (writer) lock hold count,
-         * and the upper the shared (reader) hold count.
+         * 读和写计数提取常量和函数。
+         * 锁定状态逻辑上分为两个无符号空头:
+         * 下面的表示独占(写入器)锁保持计数，上面的表示共享(读取器)保持计数。
          */
-
         static final int SHARED_SHIFT   = 16;
         static final int SHARED_UNIT    = (1 << SHARED_SHIFT);
         static final int MAX_COUNT      = (1 << SHARED_SHIFT) - 1;
         static final int EXCLUSIVE_MASK = (1 << SHARED_SHIFT) - 1;
 
-        /** Returns the number of shared holds represented in count  */
+        /** 返回count中表示的共享持有数  */
         static int sharedCount(int c)    { return c >>> SHARED_SHIFT; }
-        /** Returns the number of exclusive holds represented in count  */
+        /** 返回count中表示的独占持有数 */
         static int exclusiveCount(int c) { return c & EXCLUSIVE_MASK; }
 
         /**
-         * A counter for per-thread read hold counts.
-         * Maintained as a ThreadLocal; cached in cachedHoldCounter
+         * 用于每个线程读保持计数的计数器。维护为ThreadLocal;缓存在cachedHoldCounter
          */
         static final class HoldCounter {
             int count = 0;
@@ -346,24 +343,17 @@ public class ReentrantReadWriteLock
          */
 
         /**
-         * Returns true if the current thread, when trying to acquire
-         * the read lock, and otherwise eligible to do so, should block
-         * because of policy for overtaking other waiting threads.
+         * 如果当前线程在尝试获取读锁时，并且有资格这样做，但是由于超过其他等待线程的策略而阻塞，则返回true。
          */
         abstract boolean readerShouldBlock();
 
         /**
-         * Returns true if the current thread, when trying to acquire
-         * the write lock, and otherwise eligible to do so, should block
-         * because of policy for overtaking other waiting threads.
+         * 如果当前线程在尝试获取写锁时(或者有资格这样做)因为超过其他等待线程的策略而阻塞，则返回true。
          */
         abstract boolean writerShouldBlock();
 
         /*
-         * Note that tryRelease and tryAcquire can be called by
-         * Conditions. So it is possible that their arguments contain
-         * both read and write holds that are all released during a
-         * condition wait and re-established in tryAcquire.
+         * 试图释放资源
          */
 
         protected final boolean tryRelease(int releases) {
@@ -378,27 +368,26 @@ public class ReentrantReadWriteLock
         }
 
         protected final boolean tryAcquire(int acquires) {
-            /*
-             * Walkthrough:
-             * 1. If read count nonzero or write count nonzero
-             *    and owner is a different thread, fail.
-             * 2. If count would saturate, fail. (This can only
-             *    happen if count is already nonzero.)
-             * 3. Otherwise, this thread is eligible for lock if
-             *    it is either a reentrant acquire or
-             *    queue policy allows it. If so, update state
-             *    and set owner.
-             */
+    /*
+    逻辑：
+        1.如果读锁计数器不为0 或者 写锁计数器不为0 并且 当前线程不是持有锁的线程，则失败返回；
+        2.如果计数器达到最大值则失败；
+        3.第1和第2都不满足时，此时线程可以开始尝试获取锁并更新锁状态；
+     */
             Thread current = Thread.currentThread();
             int c = getState();
+            //当前独占锁数量
             int w = exclusiveCount(c);
             if (c != 0) {
-                // (Note: if c != 0 and w == 0 then shared count != 0)
+                //（1）如果c!=0，独占锁数量w为0，则表示有共享节点，那么需要加入阻塞队列
+                //（2）如果当前线程不是拥有线程则加入阻塞队列
                 if (w == 0 || current != getExclusiveOwnerThread())
                     return false;
+                //要执行下面的流程需要的条件：独占锁数量>0并且当前线程不是拥有线程
+                //独占锁数量不能超过超过最大值，15位二进制
                 if (w + exclusiveCount(acquires) > MAX_COUNT)
                     throw new Error("Maximum lock count exceeded");
-                // Reentrant acquire
+                // 可重入申请
                 setState(c + acquires);
                 return true;
             }
@@ -411,6 +400,7 @@ public class ReentrantReadWriteLock
 
         protected final boolean tryReleaseShared(int unused) {
             Thread current = Thread.currentThread();
+            // 首个读线程直接更新特有的计数器即可
             if (firstReader == current) {
                 // assert firstReaderHoldCount > 0;
                 if (firstReaderHoldCount == 1)
@@ -418,6 +408,7 @@ public class ReentrantReadWriteLock
                 else
                     firstReaderHoldCount--;
             } else {
+                // 非首读线程则需要更新它的重入次数减1
                 HoldCounter rh = cachedHoldCounter;
                 if (rh == null || rh.tid != getThreadId(current))
                     rh = readHolds.get();
@@ -429,6 +420,7 @@ public class ReentrantReadWriteLock
                 }
                 --rh.count;
             }
+            // CAS方式更新锁状态
             for (;;) {
                 int c = getState();
                 int nextc = c - SHARED_UNIT;
@@ -446,69 +438,64 @@ public class ReentrantReadWriteLock
         }
 
         protected final int tryAcquireShared(int unused) {
-            /*
-             * Walkthrough:
-             * 1. If write lock held by another thread, fail.
-             * 2. Otherwise, this thread is eligible for
-             *    lock wrt state, so ask if it should block
-             *    because of queue policy. If not, try
-             *    to grant by CASing state and updating count.
-             *    Note that step does not check for reentrant
-             *    acquires, which is postponed to full version
-             *    to avoid having to check hold count in
-             *    the more typical non-reentrant case.
-             * 3. If step 2 fails either because thread
-             *    apparently not eligible or CAS fails or count
-             *    saturated, chain to version with full retry loop.
-             */
+            // 获取当前线程
             Thread current = Thread.currentThread();
+            // 获取锁状态
             int c = getState();
+            // 如果独占锁数量不为0 并且 持有独占锁的线程不是当前线程，则直接失败返回
             if (exclusiveCount(c) != 0 &&
                 getExclusiveOwnerThread() != current)
                 return -1;
+            // 获取共享锁的数量
             int r = sharedCount(c);
+            // 检查是否需要因为队列策略而阻塞，若不需要则检查共享锁数量是否达到最大值，都没有则CAS更新锁状态
             if (!readerShouldBlock() &&
                 r < MAX_COUNT &&
                 compareAndSetState(c, c + SHARED_UNIT)) {
+                // 共享锁数量为0表示当前线程是第一个获取读锁的线程
                 if (r == 0) {
+                    // 更新第一个读线程变量和数量
                     firstReader = current;
                     firstReaderHoldCount = 1;
                 } else if (firstReader == current) {
+                    // 如果首个获取读锁的线程重复获取读锁时，直接重入并将计数器累加
                     firstReaderHoldCount++;
                 } else {
+                    // 获取当前线程的计数器
                     HoldCounter rh = cachedHoldCounter;
+                    // 如果计数器为空 或者 当前线程还没有创建计数器，则创建计数器并存放到readHolds中，即存放到ThreadLocal中
                     if (rh == null || rh.tid != getThreadId(current))
+                        // 在ThreadLocal中创建
                         cachedHoldCounter = rh = readHolds.get();
+                    // 如果当前线程的计数器已存在，且计数值为0，则将该计数器放到readHolds中
                     else if (rh.count == 0)
                         readHolds.set(rh);
+                    // 锁重入次数累加
                     rh.count++;
                 }
                 return 1;
             }
+            // 之前因为队列策略或更新锁失败后再通过下面方法进行完整地尝试获取锁
             return fullTryAcquireShared(current);
         }
 
         /**
-         * Full version of acquire for reads, that handles CAS misses
-         * and reentrant reads not dealt with in tryAcquireShared.
+         * 完整地获取共享锁方法
          */
         final int fullTryAcquireShared(Thread current) {
-            /*
-             * This code is in part redundant with that in
-             * tryAcquireShared but is simpler overall by not
-             * complicating tryAcquireShared with interactions between
-             * retries and lazily reading hold counts.
-             */
             HoldCounter rh = null;
+            // 循环获取读锁
             for (;;) {
                 int c = getState();
+                // 当前存在独占锁
                 if (exclusiveCount(c) != 0) {
+                    // 并且非当前线程持有该独占锁，则直接返回-1
                     if (getExclusiveOwnerThread() != current)
                         return -1;
                     // else we hold the exclusive lock; blocking here
                     // would cause deadlock.
                 } else if (readerShouldBlock()) {
-                    // Make sure we're not acquiring read lock reentrantly
+                    // 确保没有重新获取读锁定
                     if (firstReader == current) {
                         // assert firstReaderHoldCount > 0;
                     } else {
@@ -524,8 +511,10 @@ public class ReentrantReadWriteLock
                             return -1;
                     }
                 }
+                // 共享数量超过最大时抛出异常
                 if (sharedCount(c) == MAX_COUNT)
                     throw new Error("Maximum lock count exceeded");
+                // CAS更新锁状态，以下逻辑与tryAcquireShared类似
                 if (compareAndSetState(c, c + SHARED_UNIT)) {
                     if (sharedCount(c) == 0) {
                         firstReader = current;
@@ -548,9 +537,7 @@ public class ReentrantReadWriteLock
         }
 
         /**
-         * Performs tryLock for write, enabling barging in both modes.
-         * This is identical in effect to tryAcquire except for lack
-         * of calls to writerShouldBlock.
+         * 执行写锁
          */
         final boolean tryWriteLock() {
             Thread current = Thread.currentThread();
@@ -569,9 +556,7 @@ public class ReentrantReadWriteLock
         }
 
         /**
-         * Performs tryLock for read, enabling barging in both modes.
-         * This is identical in effect to tryAcquireShared except for
-         * lack of calls to readerShouldBlock.
+         * 执行读锁
          */
         final boolean tryReadLock() {
             Thread current = Thread.currentThread();
@@ -672,12 +657,8 @@ public class ReentrantReadWriteLock
             return false; // writers can always barge
         }
         final boolean readerShouldBlock() {
-            /* As a heuristic to avoid indefinite writer starvation,
-             * block if the thread that momentarily appears to be head
-             * of queue, if one exists, is a waiting writer.  This is
-             * only a probabilistic effect since a new reader will not
-             * block if there is a waiting writer behind other enabled
-             * readers that have not yet drained from the queue.
+            /*
+             * 第一个节点是否独占锁
              */
             return apparentlyFirstQueuedIsExclusive();
         }

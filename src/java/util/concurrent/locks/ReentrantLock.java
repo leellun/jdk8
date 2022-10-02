@@ -109,9 +109,7 @@ public class ReentrantLock implements Lock, java.io.Serializable {
     private final Sync sync;
 
     /**
-     * Base of synchronization control for this lock. Subclassed
-     * into fair and nonfair versions below. Uses AQS state to
-     * represent the number of holds on the lock.
+     * 此锁的同步控制基础。下面分为公平版本和不公平版本。使用aqs状态表示锁上的持有次数。
      */
     abstract static class Sync extends AbstractQueuedSynchronizer {
         private static final long serialVersionUID = -5179523762034025860L;
@@ -123,8 +121,7 @@ public class ReentrantLock implements Lock, java.io.Serializable {
         abstract void lock();
 
         /**
-         * Performs non-fair tryLock.  tryAcquire is implemented in
-         * subclasses, but both need nonfair try for trylock method.
+         * 非公平
          */
         final boolean nonfairTryAcquire(int acquires) {
             final Thread current = Thread.currentThread();
@@ -158,9 +155,12 @@ public class ReentrantLock implements Lock, java.io.Serializable {
             return free;
         }
 
+        /**
+         * 是否当前线程拥有者
+         * @return
+         */
         protected final boolean isHeldExclusively() {
-            // While we must in general read state before owner,
-            // we don't need to do so to check if current thread is owner
+            // 检查当前线程是否是所有者
             return getExclusiveOwnerThread() == Thread.currentThread();
         }
 
@@ -168,8 +168,9 @@ public class ReentrantLock implements Lock, java.io.Serializable {
             return new ConditionObject();
         }
 
-        // Methods relayed from outer class
-
+        /**
+         * 拥有者线程
+         */
         final Thread getOwner() {
             return getState() == 0 ? null : getExclusiveOwnerThread();
         }
